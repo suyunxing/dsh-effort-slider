@@ -1412,6 +1412,13 @@ window.__ModuleLoader__.load({
       return null;
     }
 
+    /** The page shares one ring, so a second mount cannot leave a ghost. */
+    let HALO = null;
+    function haloLayer() {
+      if (HALO === null) HALO = createHalo();
+      return HALO;
+    }
+
     /**
      * One fixed ring that hugs the composer. It is created once and reused, so
      * re-renders never stack copies; the geometry follows the card through a
@@ -1422,17 +1429,18 @@ window.__ModuleLoader__.load({
       let target = null;
       let observer = null;
       let frame = 0;
+      let mounts = 0;
 
       function paint() {
         frame = 0;
         if (!node) return;
         if (!target || !target.isConnected) {
-          node.dataset.on = "0";
+          hide();
           return;
         }
         const rect = target.getBoundingClientRect();
-        if (!rect.width || !rect.height) {
-          node.dataset.on = "0";
+        if (!rect.width || !rect.height || rect.bottom < 0 || rect.top > window.innerHeight) {
+          hide();
           return;
         }
         const radius = parseFloat(window.getComputedStyle(target).borderTopLeftRadius) || 16;
@@ -1448,8 +1456,24 @@ window.__ModuleLoader__.load({
         frame = window.requestAnimationFrame(paint);
       }
 
+      /** Leaving no paint behind matters more than leaving no state behind. */
+      function hide() {
+        if (!node) return;
+        node.dataset.on = "0";
+        node.dataset.hot = "0";
+        node.style.opacity = "0.000";
+        node.style.visibility = "hidden";
+      }
+
       function ensure() {
         if (node) return node;
+        /* An earlier copy of this module may have left its ring in the body. */
+        if (typeof document.querySelectorAll === "function") {
+          const stale = document.querySelectorAll(".es-halo");
+          for (let i = 0; i < stale.length; i += 1) {
+            if (stale[i].parentNode) stale[i].parentNode.removeChild(stale[i]);
+          }
+        }
         node = document.createElement("div");
         node.className = "es-halo";
         node.setAttribute("aria-hidden", "true");
@@ -1480,22 +1504,27 @@ window.__ModuleLoader__.load({
         el.style.setProperty("--es-b1", (10 + heat * 26).toFixed(1) + "px");
         el.style.setProperty("--es-b2", (34 + heat * 78).toFixed(1) + "px");
         el.style.opacity = String((!target ? 0 : opts.open ? 0.62 + heat * 0.38 : 0.2 + heat * 0.8).toFixed(3));
+        el.style.visibility = target ? "visible" : "hidden";
         el.dataset.on = target ? "1" : "0";
         el.dataset.hot = target && opts.hot ? "1" : "0";
-        schedule();
+        if (!target) hide();
+        else schedule();
+      }
+
+      function retain() {
+        mounts += 1;
       }
 
       function release() {
+        mounts = Math.max(0, mounts - 1);
+        if (mounts > 0) return;
         if (observer && typeof observer.disconnect === "function") observer.disconnect();
         observer = null;
         target = null;
-        if (node) {
-          node.dataset.on = "0";
-          node.dataset.hot = "0";
-        }
+        hide();
       }
 
-      return { place, release };
+      return { place, retain, release };
     }
 
     class EffortController {
@@ -2009,13 +2038,17 @@ window.__ModuleLoader__.load({
       if (engineRef.current === null) engineRef.current = createEngine();
 
       /* The glow that used to sit on the pill now wraps the composer card. */
-      const haloRef = react.useRef(null);
-      if (haloRef.current === null) haloRef.current = createHalo();
       react.useEffect(() => {
-        const halo = haloRef.current;
+        const halo = haloLayer();
+        halo.retain();
+        return () => halo.release();
+      }, []);
+      react.useEffect(() => {
+        const halo = haloLayer();
         const count = snap.levels.length;
         if (!snap.ready || !count) {
-          halo.release();
+          /* Hide, but keep the mount counted: release() belongs to unmount. */
+          halo.place(null, { hue: 0, heat: 0, open: false, hot: false });
           return;
         }
         const heat = count > 1 ? snap.index / (count - 1) : 0;
@@ -2026,7 +2059,6 @@ window.__ModuleLoader__.load({
           hot: heat >= 0.85
         });
       }, [snap.ready, snap.index, snap.levels.length, snap.open, snap.t]);
-      react.useEffect(() => () => haloRef.current.release(), []);
 
       /* Anchor the popup above the trigger, clamped into the viewport. */
       react.useEffect(() => {

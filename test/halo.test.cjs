@@ -29,7 +29,7 @@ function eq(label, actual, expected) {
 const src = fs.readFileSync(SOURCE, "utf8");
 const from = src.indexOf("    function composerBox(el) {");
 if (from < 0) throw new Error("composerBox not found");
-const tail = "      return { place, release };\n    }\n";
+const tail = "      return { place, retain, release };\n    }\n";
 const to = src.indexOf(tail, from);
 if (to < 0) throw new Error("end of createHalo not found");
 const slice = src.slice(from, to + tail.length);
@@ -46,6 +46,7 @@ function makeStyle() {
     width: "",
     height: "",
     borderRadius: "",
+    visibility: "",
     setProperty(name, value) {
       vars[name] = value;
     }
@@ -81,6 +82,10 @@ const document = {
   addEventListener() {},
   querySelector() {
     return null;
+  },
+  querySelectorAll(sel) {
+    if (sel !== ".es-halo") return [];
+    return document.body.children.filter((child) => child.className === "es-halo");
   }
 };
 
@@ -93,7 +98,7 @@ const window = {
 const sandbox = new Function(
   "window",
   "document",
-  slice + "\nreturn { composerBox, createHalo };"
+  slice + "\nreturn { composerBox, createHalo, haloLayer };"
 );
 
 const api = sandbox(window, document);
@@ -142,12 +147,22 @@ eq(
 
 /* ---------------- halo placement ---------------- */
 
+/* A ring orphaned by an earlier copy of this module must be swept away. */
+const orphanParent = {
+  removeChild(child) {
+    const at = document.body.children.indexOf(child);
+    if (at >= 0) document.body.children.splice(at, 1);
+  }
+};
+const orphan = { className: "es-halo", parentNode: orphanParent };
+document.body.children.push(orphan);
 const halo = api.createHalo();
 halo.place(card, { hue: 280, heat: 1, open: false, hot: true });
 flush();
 
 const node = document.body.children[0];
 eq("one node is appended to the body", document.body.children.length, 1);
+eq("the orphaned ring is swept away", document.body.children.indexOf(orphan) < 0, true);
 eq("the node carries the halo class", node.className, "es-halo");
 eq("it is hidden from assistive tech", node.attributes["aria-hidden"], "true");
 eq("it sits two pixels outside the card", [node.style.left, node.style.top], ["118px", "478px"]);
@@ -156,6 +171,8 @@ eq("the radius follows the card", node.style.borderRadius, "20px");
 eq("the hue reaches the custom property", node.style.vars["--es-hue"], "280");
 eq("max effort is fully lit", node.style.opacity, "1.000");
 eq("max effort breathes", node.dataset.hot, "1");
+eq("a visible ring is not hidden", node.style.visibility, "visible");
+eq("every mount shares one ring", api.haloLayer() === api.haloLayer(), true);
 
 halo.place(card, { hue: 200, heat: 0, open: false, hot: false });
 flush();
@@ -172,9 +189,13 @@ halo.place(null, { hue: 200, heat: 1, open: true, hot: true });
 flush();
 eq("without a card the ring is hidden", node.dataset.on, "0");
 eq("and fully transparent", node.style.opacity, "0.000");
+eq("and taken out of the paint", node.style.visibility, "hidden");
 
 halo.release();
 eq("release clears the breathing flag", node.dataset.hot, "0");
+eq("release leaves nothing painted", node.style.opacity, "0.000");
+eq("release empties the ring", node.style.visibility, "hidden");
+eq("release drops the on flag", node.dataset.on, "0");
 
 console.log("\n" + (failures ? "FAILURES: " + failures : "ALL PASS (" + checks + ")"));
 if (failures) process.exitCode = 1;
