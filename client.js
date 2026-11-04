@@ -1587,6 +1587,13 @@ window.__ModuleLoader__.load({
         this.defaultIndex = 0;
         this.sessionId = void 0;
         this.loading = false;
+        /* A read requested while another is in flight is queued, not dropped:
+           the correction that follows a Session switch almost always arrives
+           during the first catalogue read, and dropping it left the pill on
+           the deployment default until something else happened to refresh. */
+        this.refreshQueued = false;
+        this.bindTimer = 0;
+        this.bindTries = 0;
         this.commitTimer = 0;
         this.pendingIndex = -1;
         this.noticeTimer = 0;
@@ -1667,6 +1674,10 @@ window.__ModuleLoader__.load({
 
       dispose() {
         clearTimeout(this.commitTimer);
+        if (this.bindTimer) {
+          clearTimeout(this.bindTimer);
+          this.bindTimer = 0;
+        }
         this.dropSelectionSubscription();
       }
 
@@ -1752,9 +1763,25 @@ window.__ModuleLoader__.load({
        */
       bindSelection() {
         const face = this.selectionFace();
-        if (face === this.selFace) return;
+        /* Both being undefined is not "already bound": a Session that was just
+           created has no binding yet, and comparing undefined to undefined
+           used to skip the retry that fixes it. */
+        if (face) {
+          if (face === this.selFace) return;
+        } else {
+          this.scheduleBind();
+          return;
+        }
         this.dropSelectionSubscription();
-        if (!face || typeof face.subscribe !== "function") return;
+        if (typeof face.subscribe !== "function") {
+          this.scheduleBind();
+          return;
+        }
+        this.bindTries = 0;
+        if (this.bindTimer) {
+          clearTimeout(this.bindTimer);
+          this.bindTimer = 0;
+        }
         this.selFace = face;
         this.selUnsub = face.subscribe(() => {
           /* Opening the face and later commits both notify; defer so the
@@ -1763,6 +1790,17 @@ window.__ModuleLoader__.load({
             this.refresh();
           }, 0);
         });
+      }
+
+      scheduleBind() {
+        if (this.bindTimer || this.bindTries >= 12) return;
+        const delay = this.bindTries < 6 ? 200 : 1000;
+        this.bindTries += 1;
+        this.bindTimer = setTimeout(() => {
+          this.bindTimer = 0;
+          this.bindSelection();
+          this.refresh();
+        }, delay);
       }
 
       resolveSessionId() {
@@ -1886,8 +1924,22 @@ window.__ModuleLoader__.load({
       /* ---------------- catalogue ---------------- */
 
       async refresh() {
-        if (this.loading) return;
+        if (this.loading) {
+          this.refreshQueued = true;
+          return;
+        }
         this.loading = true;
+        try {
+          do {
+            this.refreshQueued = false;
+            await this.refreshOnce();
+          } while (this.refreshQueued);
+        } finally {
+          this.loading = false;
+        }
+      }
+
+      async refreshOnce() {
         /* Reading a projection before subscribing to it can return no value at
            all, so the follow-up starts the subscription first. */
         this.bindSelection();
@@ -1895,12 +1947,10 @@ window.__ModuleLoader__.load({
         try {
           remote = this.ctx.remote.session;
         } catch (err) {
-          this.loading = false;
           this.store.set({ supported: false, ready: true, levels: [], modelName: "", error: null, debug: "inject:" + messageOf(err) });
           return;
         }
         if (!remote || typeof remote.modelCatalog !== "function") {
-          this.loading = false;
           this.store.set({
             supported: false,
             ready: true,
@@ -1970,8 +2020,6 @@ window.__ModuleLoader__.load({
           });
         } catch (err) {
           this.store.set({ ready: true, error: messageOf(err), debug: "throw:" + messageOf(err) });
-        } finally {
-          this.loading = false;
         }
       }
 
