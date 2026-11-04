@@ -49,7 +49,11 @@ actually using.
 - The composer itself carries the light: a halo wraps the whole input card, with
   the same hue as the rail. Brightness, ring alpha and glow radius all follow the
   level, so `off` is a faint rim and the top level breathes; opening the panel
-  lifts it. The pill no longer glows on its own — the halo replaces it.
+  lifts it. The pill only keeps an outline while the halo is on.
+- The halo is a setting, not a hard rule. A `外圈光环` switch sits under the rail;
+  turn it off and the glow returns to the pill alone, the way it was before the
+  halo existed. The choice is stored in `localStorage` under
+  `effort-slider:halo`, so it survives a reload.
 - Models without reasoning efforts are tagged `无档位` in the model list and
   degrade gracefully once selected: the rail is dimmed and the status line says so
   instead of pretending to switch.

@@ -27,8 +27,8 @@ function eq(label, actual, expected) {
 /* ---------------- slice ---------------- */
 
 const src = fs.readFileSync(SOURCE, "utf8");
-const from = src.indexOf("    function composerBox(el) {");
-if (from < 0) throw new Error("composerBox not found");
+const from = src.indexOf('    const HALO_KEY = "effort-slider:halo";');
+if (from < 0) throw new Error("halo helpers not found");
 const tail = "      return { place, retain, release };\n    }\n";
 const to = src.indexOf(tail, from);
 if (to < 0) throw new Error("end of createHalo not found");
@@ -90,6 +90,15 @@ const document = {
 };
 
 const window = {
+  localStorage: {
+    store: {},
+    getItem(key) {
+      return Object.prototype.hasOwnProperty.call(this.store, key) ? this.store[key] : null;
+    },
+    setItem(key, value) {
+      this.store[key] = value;
+    }
+  },
   requestAnimationFrame: raf,
   addEventListener() {},
   getComputedStyle: () => ({ borderTopLeftRadius: "18px" })
@@ -98,10 +107,18 @@ const window = {
 const sandbox = new Function(
   "window",
   "document",
-  slice + "\nreturn { composerBox, createHalo, haloLayer };"
+  slice + "\nreturn { composerBox, createHalo, haloLayer, readHaloPref, writeHaloPref };"
 );
 
 const api = sandbox(window, document);
+
+/* ---------------- preference ---------------- */
+
+eq("the halo is on by default", api.readHaloPref(), true);
+api.writeHaloPref(false);
+eq("switching it off is remembered", api.readHaloPref(), false);
+api.writeHaloPref(true);
+eq("and it can be switched back on", api.readHaloPref(), true);
 
 /* ---------------- fixtures ---------------- */
 

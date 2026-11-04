@@ -50,6 +50,8 @@ window.__ModuleLoader__.load({
       clamped: "该模型没有「{from}」档，已自动切到最接近的「{to}」",
       noEffortModel: "「{model}」没有思考强度档位，已按模型默认运行",
       noLevelsTag: "无档位",
+      haloLabel: "外圈光环",
+      haloTitle: "在输入框外面加一圈随档位变化的光环；关闭后只在档位按钮周围发光",
       boom: "宇宙毁灭",
       afterBoom: "星际探索"
     };
@@ -72,6 +74,8 @@ window.__ModuleLoader__.load({
       clamped: "This model has no \"{from}\" level — switched to the nearest one, \"{to}\"",
       noEffortModel: "\"{model}\" exposes no effort levels — running at its default",
       noLevelsTag: "no levels",
+      haloLabel: "Composer halo",
+      haloTitle: "Ring the input box with a glow that follows the effort level; off keeps the glow on the pill only",
       boom: "SINGULARITY",
       afterBoom: "DEEP SPACE"
     };
@@ -137,6 +141,12 @@ window.__ModuleLoader__.load({
       ".es-foot{display:flex;align-items:center;gap:8px;padding:10px 2px 0;font-size:11.5px;color:#7f8798;min-height:18px;line-height:1.4}",
       '.es-foot[data-err="1"]{color:#ff9a9a}',
       '.es-foot[data-note="1"]{color:hsl(var(--es-hue) 100% 84%)}',
+      ".es-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px 0;font-size:11.5px;color:#8b93a6}",
+      ".es-switch{flex:none;width:34px;height:19px;padding:0;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);position:relative;cursor:pointer;transition:background .2s ease,border-color .2s ease}",
+      '.es-switch[data-on="1"]{background:hsl(var(--es-hue) 100% 62% / .38);border-color:hsl(var(--es-hue) 100% 70% / .55)}',
+      ".es-switch-knob{position:absolute;top:1.5px;left:1.5px;width:14px;height:14px;border-radius:50%;background:#cfd6e6;transition:transform .18s ease,background .18s ease}",
+      '.es-switch[data-on="1"] .es-switch-knob{transform:translateX(15px);background:#fff}',
+      '.es-trigger[data-halo="0"][data-open="1"]{box-shadow:0 0 14px hsl(var(--es-hue) 100% 66% / .28)}',
       ".es-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:screen;display:block}",
       ".es-flash{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(60% 60% at 50% 50%,#fff,rgba(190,215,255,.6) 45%,transparent 72%)}",
       ".es-flash.go{animation:es-flash 1.1s ease-out both}",
@@ -1397,6 +1407,28 @@ window.__ModuleLoader__.load({
      * CSS-module names (`<hash>_card`), so match that suffix first and fall
      * back to "the nearest rounded box that owns a text field".
      */
+    /* A preference, not state: the halo can be switched off, and the choice
+       outlives the page. localStorage is guarded because a host context may
+       refuse it. */
+    const HALO_KEY = "effort-slider:halo";
+    function readHaloPref() {
+      try {
+        if (typeof window === "undefined" || !window.localStorage) return true;
+        const raw = window.localStorage.getItem(HALO_KEY);
+        return raw === null ? true : raw !== "0";
+      } catch (err) {
+        return true;
+      }
+    }
+    function writeHaloPref(on) {
+      try {
+        if (typeof window === "undefined" || !window.localStorage) return;
+        window.localStorage.setItem(HALO_KEY, on ? "1" : "0");
+      } catch (err) {
+        /* a preference that cannot persist still applies to this page */
+      }
+    }
+
     function composerBox(el) {
       if (!el || typeof el.closest !== "function") return null;
       const card = el.closest('[class*="_card"]');
@@ -1579,7 +1611,8 @@ window.__ModuleLoader__.load({
           ready: false,
           modelName: "",
           modelId: "",
-          provider: ""
+          provider: "",
+          halo: readHaloPref()
         });
       }
 
@@ -1617,12 +1650,19 @@ window.__ModuleLoader__.load({
           close: () => this.close(),
           toggle: () => this.toggle(),
           toggleModels: () => this.toggleModels(),
+          toggleHalo: () => this.toggleHalo(),
           chooseModel: (provider, modelId) => this.chooseModel(provider, modelId),
           reset: () => this.reset(),
           commit: (i) => this.commit(i),
           setIndex: (i) => this.setIndex(i),
           setSession: (id) => this.setSession(id)
         };
+      }
+
+      toggleHalo() {
+        const on = !this.store.getSnapshot().halo;
+        writeHaloPref(on);
+        this.store.set({ halo: on });
       }
 
       dispose() {
@@ -2065,7 +2105,7 @@ window.__ModuleLoader__.load({
       react.useEffect(() => {
         const halo = haloLayer();
         const count = snap.levels.length;
-        if (!snap.ready || !count) {
+        if (!snap.halo || !snap.ready || !count) {
           /* Hide, but keep the mount counted: release() belongs to unmount. */
           halo.place(null, { hue: 0, heat: 0, open: false, hot: false });
           return;
@@ -2081,7 +2121,7 @@ window.__ModuleLoader__.load({
           },
           triggerRef.current
         );
-      }, [snap.ready, snap.index, snap.levels.length, snap.open, snap.t]);
+      }, [snap.halo, snap.ready, snap.index, snap.levels.length, snap.open, snap.t]);
 
       /* Anchor the popup above the trigger, clamped into the viewport. */
       react.useEffect(() => {
@@ -2205,6 +2245,7 @@ window.__ModuleLoader__.load({
           "aria-expanded": snap.open ? "true" : "false",
           "data-open": snap.open ? "1" : "0",
           "data-locked": locked ? "1" : "0",
+          "data-halo": snap.halo ? "1" : "0",
           disabled: locked,
           style: { "--es-hue": String(hue), "--es-e": snap.t.toFixed(3) },
           onClick: () => props.toggle()
@@ -2344,6 +2385,25 @@ window.__ModuleLoader__.load({
                 },
                 lv.name
               )
+            )
+          ),
+          h(
+            "div",
+            { className: "es-opt", key: "opt" },
+            h("span", { key: "l" }, props.t("haloLabel")),
+            h(
+              "button",
+              {
+                type: "button",
+                role: "switch",
+                className: "es-switch",
+                title: props.t("haloTitle"),
+                "aria-label": props.t("haloLabel"),
+                "aria-checked": snap.halo ? "true" : "false",
+                "data-on": snap.halo ? "1" : "0",
+                onClick: () => props.toggleHalo()
+              },
+              h("span", { className: "es-switch-knob", key: "k" })
             )
           ),
           h("div", { className: "es-foot", key: "foot", "data-err": snap.error ? "1" : "0", "data-note": footNote ? "1" : "0" }, footText)
