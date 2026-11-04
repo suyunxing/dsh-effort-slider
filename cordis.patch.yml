@@ -3,4 +3,4 @@
 # "./client") claims the composer tool row and the frame-wide overlay layer.
 - insert:
     - id: effort-slider
-      name: 'dsh-effort-slider'
+      name: '@lolannn/dsh-effort-slider'

@@ -5,6 +5,13 @@ web GUI composer. One control owns both halves of the model choice: the model
 list and that model's reasoning effort, which becomes a glowing rail with a
 starfield behind it.
 
+**中文**：把 dsh 输入框里的模型选择器换成一条"星光滑轨"——模型列表与思考强度由同一个控件管，切到不支持当前档位的模型时自动落到最接近的一档，不再报错。
+
+```bash
+dsh plugin add @lolannn/dsh-effort-slider          # from npm
+dsh plugin add git+https://github.com/suyunxing/dsh-effort-slider   # from source
+```
+
 ## What it does
 
 - Takes over `conversation.input.model` (a single slot, so this shadows the

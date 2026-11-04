@@ -12,7 +12,7 @@
  * slider always matches the efforts the current model actually declares.
  */
 window.__ModuleLoader__.load({
-  id: "dsh-effort-slider",
+  id: "@lolannn/dsh-effort-slider",
   factory: (require) => {
     var module = { exports: {} };
     var exports = module.exports;
@@ -151,7 +151,7 @@ window.__ModuleLoader__.load({
       const existing = document.querySelector("style[data-plugin-css=" + JSON.stringify(CSS_TAG) + "]");
       if (existing !== null) return;
       const tag = document.createElement("style");
-      tag.dataset.plugin = "dsh-effort-slider";
+      tag.dataset.plugin = "@lolannn/dsh-effort-slider";
       tag.dataset.pluginCss = CSS_TAG;
       tag.textContent = CSS;
       document.head.appendChild(tag);
@@ -2235,7 +2235,7 @@ window.__ModuleLoader__.load({
       });
     }
 
-    exports.name = "dsh-effort-slider";
+    exports.name = "@lolannn/dsh-effort-slider";
     exports.inject = inject;
     exports.apply = apply;
 

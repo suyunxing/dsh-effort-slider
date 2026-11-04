@@ -74,7 +74,8 @@ new Function("window", "document", source)(global.window, undefined);
 if (!captured) throw new Error("module loader was never called");
 const reactStub = { createElement: (...args) => ({ args }), useEffect: () => {}, useRef: () => ({ current: null }), useState: () => [null, () => {}], useLayoutEffect: () => {}, useMemo: (f) => f(), createContext: () => ({ Provider: null, Consumer: null }) };
 const mod = captured.factory((id) => (id === "react" ? reactStub : id === "react-dom" ? { createPortal: () => null } : {}));
-eq("exports.name", mod.name, "dsh-effort-slider");
+eq("module loader id matches the package name", captured.id, "@lolannn/dsh-effort-slider");
+eq("exports.name", mod.name, "@lolannn/dsh-effort-slider");
 eq("exports.inject is an array", Array.isArray(mod.inject), true);
 eq("exports.apply is a function", typeof mod.apply, "function");
 
