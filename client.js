@@ -84,8 +84,12 @@ window.__ModuleLoader__.load({
       ".es-anchor{display:inline-flex;align-items:center;min-width:0;max-width:100%}",
       ".es-trigger{--es-hue:214;--es-e:0;position:relative;display:inline-flex;align-items:center;gap:6px;height:28px;max-width:min(340px,44vw);padding:0 9px;margin:0;border-radius:999px;border:1px solid transparent;background:transparent;color:#c3cbdb;font:inherit;font-size:12.5px;font-weight:500;line-height:1;cursor:pointer;white-space:nowrap;transition:background .2s ease,border-color .25s ease,color .2s ease,box-shadow .35s ease}",
       ".es-trigger:hover{background:rgba(255,255,255,.055);border-color:rgba(255,255,255,.1);color:#eef2fb}",
-      '.es-trigger[data-open="1"]{background:rgba(255,255,255,.08);border-color:hsl(var(--es-hue) 100% 74% / .45);color:#fff;box-shadow:0 0 14px hsl(var(--es-hue) 100% 66% / .28)}',
+      '.es-trigger[data-open="1"]{background:rgba(255,255,255,.09);border-color:hsl(var(--es-hue) 100% 76% / .34);color:#fff}',
       '.es-trigger[data-locked="1"]{opacity:.5;cursor:default}',
+      ".es-halo{position:fixed;z-index:2147482600;pointer-events:none;opacity:0;border-radius:20px;border:1px solid hsl(var(--es-hue) 100% 74% / var(--es-a0,.12));box-shadow:0 0 0 1px hsl(var(--es-hue) 100% 74% / var(--es-a1,.05)),0 0 var(--es-b1,10px) hsl(var(--es-hue) 100% 64% / var(--es-a2,.1)),0 0 var(--es-b2,34px) hsl(var(--es-hue) 100% 58% / var(--es-a3,.05));transition:opacity .5s ease,box-shadow .45s ease,border-color .45s ease;will-change:opacity,box-shadow}",
+      '.es-halo[data-on="1"]{opacity:1}',
+      '.es-halo[data-hot="1"]{animation:es-halo-breathe 3.6s ease-in-out infinite}',
+      "@keyframes es-halo-breathe{0%,100%{opacity:.62}50%{opacity:1}}",
       ".es-trigger-bolt{display:var(--dsh-composer-model-icon-display,none);width:14px;height:14px;flex:none;align-items:center;justify-content:center;color:hsl(var(--es-hue) 100% 78%)}",
       ".es-trigger-text{display:var(--dsh-composer-model-text-display,inline);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}",
       ".es-trigger-effort{display:var(--dsh-composer-model-text-display,inline);font-weight:600;color:hsl(var(--es-hue) 100% 84%);text-shadow:0 0 10px hsl(var(--es-hue) 100% 70% / .45)}",
@@ -1388,6 +1392,112 @@ window.__ModuleLoader__.load({
       return hit ? hit.name : String(id);
     }
 
+    /**
+     * The composer card that owns the trigger. The shipped DOM uses hashed
+     * CSS-module names (`<hash>_card`), so match that suffix first and fall
+     * back to "the nearest rounded box that owns a text field".
+     */
+    function composerBox(el) {
+      if (!el || typeof el.closest !== "function") return null;
+      const card = el.closest('[class*="_card"]');
+      if (card && card.querySelector && card.querySelector('textarea,[contenteditable="true"],[role="textbox"]')) return card;
+      let node = el.parentElement;
+      while (node && node !== document.body) {
+        if (node.querySelector && node.querySelector('textarea,[contenteditable="true"],[role="textbox"]')) {
+          const cs = window.getComputedStyle(node);
+          if ((parseFloat(cs.borderTopLeftRadius) || 0) >= 10) return node;
+        }
+        node = node.parentElement;
+      }
+      return null;
+    }
+
+    /**
+     * One fixed ring that hugs the composer. It is created once and reused, so
+     * re-renders never stack copies; the geometry follows the card through a
+     * ResizeObserver plus the window events that can move it.
+     */
+    function createHalo() {
+      let node = null;
+      let target = null;
+      let observer = null;
+      let frame = 0;
+
+      function paint() {
+        frame = 0;
+        if (!node) return;
+        if (!target || !target.isConnected) {
+          node.dataset.on = "0";
+          return;
+        }
+        const rect = target.getBoundingClientRect();
+        if (!rect.width || !rect.height) {
+          node.dataset.on = "0";
+          return;
+        }
+        const radius = parseFloat(window.getComputedStyle(target).borderTopLeftRadius) || 16;
+        node.style.left = rect.left - 2 + "px";
+        node.style.top = rect.top - 2 + "px";
+        node.style.width = rect.width + 4 + "px";
+        node.style.height = rect.height + 4 + "px";
+        node.style.borderRadius = radius + 2 + "px";
+      }
+
+      function schedule() {
+        if (frame) return;
+        frame = window.requestAnimationFrame(paint);
+      }
+
+      function ensure() {
+        if (node) return node;
+        node = document.createElement("div");
+        node.className = "es-halo";
+        node.setAttribute("aria-hidden", "true");
+        document.body.appendChild(node);
+        window.addEventListener("resize", schedule, { passive: true });
+        document.addEventListener("scroll", schedule, { capture: true, passive: true });
+        return node;
+      }
+
+      function place(box, opts) {
+        const el = ensure();
+        if (box !== target) {
+          target = box;
+          if (observer && typeof observer.disconnect === "function") observer.disconnect();
+          observer = null;
+          if (target && typeof window.ResizeObserver === "function") {
+            observer = new window.ResizeObserver(schedule);
+            observer.observe(target);
+          }
+          schedule();
+        }
+        const heat = Math.max(0, Math.min(1, Number(opts.heat) || 0));
+        el.style.setProperty("--es-hue", String(opts.hue | 0));
+        el.style.setProperty("--es-a0", (0.1 + heat * 0.34).toFixed(3));
+        el.style.setProperty("--es-a1", (0.04 + heat * 0.14).toFixed(3));
+        el.style.setProperty("--es-a2", (0.1 + heat * 0.44).toFixed(3));
+        el.style.setProperty("--es-a3", (0.05 + heat * 0.3).toFixed(3));
+        el.style.setProperty("--es-b1", (10 + heat * 26).toFixed(1) + "px");
+        el.style.setProperty("--es-b2", (34 + heat * 78).toFixed(1) + "px");
+        el.style.opacity = String((!target ? 0 : opts.open ? 0.62 + heat * 0.38 : 0.2 + heat * 0.8).toFixed(3));
+        el.dataset.on = target ? "1" : "0";
+        el.dataset.hot = target && opts.hot ? "1" : "0";
+        schedule();
+      }
+
+      function release() {
+        if (observer && typeof observer.disconnect === "function") observer.disconnect();
+        observer = null;
+        target = null;
+        if (node) {
+          node.dataset.on = "0";
+          node.dataset.hot = "0";
+        }
+      }
+
+      return { place, release };
+    }
+
     class EffortController {
       constructor(ctx) {
         this.ctx = ctx;
@@ -1897,6 +2007,26 @@ window.__ModuleLoader__.load({
       const setPos = posState[1];
 
       if (engineRef.current === null) engineRef.current = createEngine();
+
+      /* The glow that used to sit on the pill now wraps the composer card. */
+      const haloRef = react.useRef(null);
+      if (haloRef.current === null) haloRef.current = createHalo();
+      react.useEffect(() => {
+        const halo = haloRef.current;
+        const count = snap.levels.length;
+        if (!snap.ready || !count) {
+          halo.release();
+          return;
+        }
+        const heat = count > 1 ? snap.index / (count - 1) : 0;
+        halo.place(composerBox(triggerRef.current), {
+          hue: Math.round(hueAtT(snap.t)),
+          heat: heat,
+          open: snap.open,
+          hot: heat >= 0.85
+        });
+      }, [snap.ready, snap.index, snap.levels.length, snap.open, snap.t]);
+      react.useEffect(() => () => haloRef.current.release(), []);
 
       /* Anchor the popup above the trigger, clamped into the viewport. */
       react.useEffect(() => {

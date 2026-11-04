@@ -1,9 +1,9 @@
-/* Runs both harnesses. `npm test` is what `prepublishOnly` calls, so a release
-   cannot ship a mapping rule that the real controller code does not follow. */
+/* Runs every harness. `npm test` is what `prepublishOnly` calls, so a release
+   cannot ship a rule that the real code does not follow. */
 const { spawnSync } = require("child_process");
 const path = require("path");
 
-const files = ["effort-mapping.test.cjs", "model-switch.test.cjs"];
+const files = ["effort-mapping.test.cjs", "model-switch.test.cjs", "halo.test.cjs"];
 let failed = 0;
 
 for (const file of files) {
@@ -12,5 +12,5 @@ for (const file of files) {
   if (run.status !== 0) failed += 1;
 }
 
-console.log(failed === 0 ? "\nboth harnesses passed" : "\n" + failed + " harness(es) failed");
+console.log(failed === 0 ? "\nall harnesses passed" : "\n" + failed + " harness(es) failed");
 process.exit(failed === 0 ? 0 : 1);

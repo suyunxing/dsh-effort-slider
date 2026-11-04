@@ -46,6 +46,10 @@ actually using.
   four-point stars, a breathing star core, and a three-armed galaxy that
   collapses out of the rail at the top level. Reaching the top fires a shockwave
   burst, a star-warp starfield and a light-blade flash.
+- The composer itself carries the light: a halo wraps the whole input card, with
+  the same hue as the rail. Brightness, ring alpha and glow radius all follow the
+  level, so `off` is a faint rim and the top level breathes; opening the panel
+  lifts it. The pill no longer glows on its own — the halo replaces it.
 - Models without reasoning efforts are tagged `无档位` in the model list and
   degrade gracefully once selected: the rail is dimmed and the status line says so
   instead of pretending to switch.
