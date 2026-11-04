@@ -1430,10 +1430,27 @@ window.__ModuleLoader__.load({
       let observer = null;
       let frame = 0;
       let mounts = 0;
+      let anchor = null;
 
       function paint() {
         frame = 0;
         if (!node) return;
+        /*
+         * The host may rebuild the composer node (a session switch, a layout
+         * change) without telling us; look the card up again from the trigger
+         * rather than keeping a ring pinned to a detached node.
+         */
+        if ((!target || !target.isConnected) && anchor && anchor.isConnected) {
+          const again = composerBox(anchor);
+          if (again !== target) {
+            target = again;
+            if (again && typeof window.ResizeObserver === "function") {
+              if (observer && typeof observer.disconnect === "function") observer.disconnect();
+              observer = new window.ResizeObserver(schedule);
+              observer.observe(again);
+            }
+          }
+        }
         if (!target || !target.isConnected) {
           hide();
           return;
@@ -1483,8 +1500,9 @@ window.__ModuleLoader__.load({
         return node;
       }
 
-      function place(box, opts) {
+      function place(box, opts, from) {
         const el = ensure();
+        if (from) anchor = from;
         if (box !== target) {
           target = box;
           if (observer && typeof observer.disconnect === "function") observer.disconnect();
@@ -1521,6 +1539,7 @@ window.__ModuleLoader__.load({
         if (observer && typeof observer.disconnect === "function") observer.disconnect();
         observer = null;
         target = null;
+        anchor = null;
         hide();
       }
 
@@ -2052,12 +2071,16 @@ window.__ModuleLoader__.load({
           return;
         }
         const heat = count > 1 ? snap.index / (count - 1) : 0;
-        halo.place(composerBox(triggerRef.current), {
-          hue: Math.round(hueAtT(snap.t)),
-          heat: heat,
-          open: snap.open,
-          hot: heat >= 0.85
-        });
+        halo.place(
+          composerBox(triggerRef.current),
+          {
+            hue: Math.round(hueAtT(snap.t)),
+            heat: heat,
+            open: snap.open,
+            hot: heat >= 0.85
+          },
+          triggerRef.current
+        );
       }, [snap.ready, snap.index, snap.levels.length, snap.open, snap.t]);
 
       /* Anchor the popup above the trigger, clamped into the viewport. */

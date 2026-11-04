@@ -129,11 +129,13 @@ function makeCard(rect) {
 /* ---------------- composer lookup ---------------- */
 
 const card = makeCard({ left: 120, top: 480, width: 820, height: 132 });
+let activeCard = card;
 const trigger = {
   tagName: "BUTTON",
+  isConnected: true,
   parentElement: { tagName: "SPAN", parentElement: null, querySelector: () => null },
   closest(sel) {
-    return sel === '[class*="_card"]' ? card : null;
+    return sel === '[class*="_card"]' ? activeCard : null;
   }
 };
 
@@ -184,6 +186,15 @@ halo.place(card, { hue: 200, heat: 0.4, open: true, hot: false });
 flush();
 eq("an open panel lifts the ring above its resting value", node.style.opacity, "0.772");
 eq("the glow radius is driven by heat", node.style.vars["--es-b2"], "65.2px");
+
+/* The host rebuilt the composer card: the ring must follow it, not freeze. */
+const rebuilt = makeCard({ left: 60, top: 300, width: 700, height: 100 });
+card.isConnected = false;
+activeCard = rebuilt;
+halo.place(card, { hue: 210, heat: 0.5, open: false, hot: false }, trigger);
+flush();
+eq("a rebuilt card is found again", [node.style.left, node.style.top], ["58px", "298px"]);
+eq("and the ring stays visible", node.style.visibility, "visible");
 
 halo.place(null, { hue: 200, heat: 1, open: true, hot: true });
 flush();
