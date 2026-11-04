@@ -12,6 +12,17 @@ dsh plugin add @lolannn/dsh-effort-slider          # from npm
 dsh plugin add git+https://github.com/suyunxing/dsh-effort-slider   # from source
 ```
 
+## Screenshots
+
+![Reasoning effort rail on deepseek-flash](https://raw.githubusercontent.com/suyunxing/dsh-effort-slider/main/docs/screenshots/effort-slider-deepseek-flash.png)
+
+![The same control on a model with a different effort ladder](https://raw.githubusercontent.com/suyunxing/dsh-effort-slider/main/docs/screenshots/effort-slider-gpt-xhigh.png)
+
+The rail is drawn from the model's own `reasoning.efforts`, so the tick labels
+change with the model — `off / low / high / max` on one, `low / medium / high /
+xhigh / max` on another — and the knob lands on the level the session is
+actually using.
+
 ## What it does
 
 - Takes over `conversation.input.model` (a single slot, so this shadows the
