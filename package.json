@@ -1,0 +1,60 @@
+{
+  "name": "dsh-effort-slider",
+  "version": "0.2.5",
+  "description": "Replaces the dsh web GUI composer model selector: one control for the model list and its reasoning effort, drawn as a starfield popup with a glowing particle rail, iridescent four-point stars, ribbon waves and a galaxy collapse at the top level.",
+  "icon": "icon.svg",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "check": "node --check client.js && node --check index.js",
+    "test": "node test/run.cjs",
+    "prepublishOnly": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suyunxing/dsh-effort-slider.git"
+  },
+  "homepage": "https://github.com/suyunxing/dsh-effort-slider#readme",
+  "bugs": {
+    "url": "https://github.com/suyunxing/dsh-effort-slider/issues"
+  },
+  "author": "suyunxing",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-session-controller"
+      ],
+      "platform": "web",
+      "immediately": true
+    }
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "reasoning-effort",
+    "model-selector",
+    "composer",
+    "slider",
+    "canvas",
+    "starfield"
+  ]
+}

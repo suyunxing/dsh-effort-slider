@@ -1,0 +1,6 @@
+# dsh-effort-slider bundle patch: inserts one plugin row into the web profile
+# roster. The row is a bare plugin by package name; its browser half (exports
+# "./client") claims the composer tool row and the frame-wide overlay layer.
+- insert:
+    - id: effort-slider
+      name: 'dsh-effort-slider'

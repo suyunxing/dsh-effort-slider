@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Reasoning effort slider">
+  <defs>
+    <linearGradient id="es-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1024"/>
+      <stop offset="0.55" stop-color="#141a3a"/>
+      <stop offset="1" stop-color="#241033"/>
+    </linearGradient>
+    <radialGradient id="es-core" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="0.45" stop-color="#9fd0ff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#5f7bff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="es-rail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2f7bff"/>
+      <stop offset="0.5" stop-color="#8f6bff"/>
+      <stop offset="1" stop-color="#ff8ad8"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="url(#es-bg)"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#ffffff" stroke-opacity="0.12"/>
+
+  <circle cx="32" cy="30" r="17" fill="url(#es-core)"/>
+
+  <!-- four-point star with a pinched waist: the panel's signature glyph -->
+  <path d="M32 9 L33.6 26.6 L52 30 L33.6 33.4 L32 51 L30.4 33.4 L12 30 L30.4 26.6 Z"
+        fill="#eaf2ff" fill-opacity="0.95"/>
+  <path d="M32 16 L32.9 27.4 L44 30 L32.9 32.6 L32 44 L31.1 32.6 L20 30 L31.1 27.4 Z"
+        fill="#a8b8ff" fill-opacity="0.7"/>
+
+  <!-- the rail, with a lit handle at the top end -->
+  <rect x="10" y="47" width="44" height="7" rx="3.5" fill="#0a0d18" stroke="#ffffff" stroke-opacity="0.1"/>
+  <rect x="10" y="47" width="35" height="7" rx="3.5" fill="url(#es-rail)" fill-opacity="0.9"/>
+  <circle cx="45" cy="50.5" r="5.6" fill="#ffffff" fill-opacity="0.28"/>
+  <circle cx="45" cy="50.5" r="3.4" fill="#ffffff"/>
+</svg>
