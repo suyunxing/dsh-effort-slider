@@ -11,7 +11,7 @@ const from = source.indexOf("const EFFORT_LADDER");
 const to = source.indexOf("class EffortController");
 if (from < 0 || to < 0 || to < from) throw new Error("could not slice helpers");
 const helpers = source.slice(from, to);
-const api = new Function(helpers + "\nreturn { resolveEffort, modelEfforts, effortName, EFFORT_LADDER };")();
+const api = new Function(helpers + "\nreturn { resolveEffort, modelEfforts, effortName, warpIndexOf, EFFORT_LADDER };")();
 
 const model = (id, ids, def) => ({
   id,
@@ -67,6 +67,15 @@ eq("from carries the requested id", api.resolveEffort(deepseek, "medium").from, 
 eq("effortName resolves a display name", api.effortName(deepseek, "max"), "MAX");
 
 console.log("\nfactory instantiates:");
+console.log("\nwarp gate sits on the high level:");
+const ids = (m) => api.modelEfforts(m);
+eq("deepseek off/low/high/max -> gate 2", api.warpIndexOf(ids(deepseek)), 2);
+eq("piai seven levels -> gate 4", api.warpIndexOf(ids(piai)), 4);
+eq("shorty off/low -> last rung at or below high", api.warpIndexOf(ids(shorty)), 1);
+eq("single level never warps", api.warpIndexOf(ids(model("one", ["off"]))), 0);
+eq("unknown names keep the first level as gate", api.warpIndexOf(ids(alien)), 0);
+eq("empty list is safe", api.warpIndexOf([]), 0);
+
 let captured = null;
 global.window = { __ModuleLoader__: { load: (def) => { captured = def; } } };
 global.document = undefined;
