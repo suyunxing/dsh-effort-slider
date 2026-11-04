@@ -1463,9 +1463,11 @@ window.__ModuleLoader__.load({
       let frame = 0;
       let mounts = 0;
       let anchor = null;
+      let pollTimer = 0;
+      let until = 0;
+      let lastGeom = "";
 
       function paint() {
-        frame = 0;
         if (!node) return;
         /*
          * The host may rebuild the composer node (a session switch, a layout
@@ -1492,6 +1494,15 @@ window.__ModuleLoader__.load({
           hide();
           return;
         }
+        /*
+         * The composer moves without resizing — a Session switch turns the
+         * centred empty state into the docked conversation view, and a pure
+         * ResizeObserver never fires for that. Re-read the geometry instead of
+         * trusting the last placed rect, but only touch the DOM when it moved.
+         */
+        const key = rect.left + "," + rect.top + "," + rect.width + "," + rect.height;
+        if (key === lastGeom && node.dataset.on === "1") return;
+        lastGeom = key;
         const radius = parseFloat(window.getComputedStyle(target).borderTopLeftRadius) || 16;
         node.style.left = rect.left - 2 + "px";
         node.style.top = rect.top - 2 + "px";
@@ -1500,9 +1511,45 @@ window.__ModuleLoader__.load({
         node.style.borderRadius = radius + 2 + "px";
       }
 
-      function schedule() {
+      /** Frames follow the card closely for a moment after anything may have moved it. */
+      function watchFor(ms) {
+        until = Math.max(until, Date.now() + ms);
         if (frame) return;
-        frame = window.requestAnimationFrame(paint);
+        frame = window.requestAnimationFrame(track);
+      }
+
+      function track() {
+        frame = 0;
+        if (!node) return;
+        paint();
+        if (!target || Date.now() >= until) return;
+        frame = window.requestAnimationFrame(track);
+      }
+
+      function schedule() {
+        watchFor(1200);
+      }
+
+      /* A layout change can also land long after the switch, so a slow poll
+         keeps watching for as long as the ring exists. */
+      function poll() {
+        pollTimer = setTimeout(() => {
+          pollTimer = 0;
+          if (!node) return;
+          paint();
+          poll();
+        }, 250);
+      }
+
+      function startPoll() {
+        if (pollTimer || typeof setTimeout !== "function") return;
+        poll();
+      }
+
+      function stopPoll() {
+        if (!pollTimer) return;
+        clearTimeout(pollTimer);
+        pollTimer = 0;
       }
 
       /** Leaving no paint behind matters more than leaving no state behind. */
@@ -1512,6 +1559,7 @@ window.__ModuleLoader__.load({
         node.dataset.hot = "0";
         node.style.opacity = "0.000";
         node.style.visibility = "hidden";
+        lastGeom = "";
       }
 
       function ensure() {
@@ -1543,7 +1591,9 @@ window.__ModuleLoader__.load({
             observer = new window.ResizeObserver(schedule);
             observer.observe(target);
           }
-          schedule();
+          lastGeom = "";
+          if (target) startPoll();
+          watchFor(3000);
         }
         const heat = Math.max(0, Math.min(1, Number(opts.heat) || 0));
         el.style.setProperty("--es-hue", String(opts.hue | 0));
@@ -1568,6 +1618,8 @@ window.__ModuleLoader__.load({
       function release() {
         mounts = Math.max(0, mounts - 1);
         if (mounts > 0) return;
+        stopPoll();
+        lastGeom = "";
         if (observer && typeof observer.disconnect === "function") observer.disconnect();
         observer = null;
         target = null;

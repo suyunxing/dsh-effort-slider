@@ -213,6 +213,15 @@ flush();
 eq("a rebuilt card is found again", [node.style.left, node.style.top], ["58px", "298px"]);
 eq("and the ring stays visible", node.style.visibility, "visible");
 
+/* The composer can move without resizing: the centred empty state hands over
+   to the docked conversation view. No resize, no scroll — only tracking keeps
+   the ring on the card. */
+rebuilt.rect.top = 240;
+rebuilt.rect.left = 75;
+flush();
+flush();
+eq("the ring follows a card that only moved", [node.style.left, node.style.top], ["73px", "238px"]);
+
 halo.place(null, { hue: 200, heat: 1, open: true, hot: true });
 flush();
 eq("without a card the ring is hidden", node.dataset.on, "0");
