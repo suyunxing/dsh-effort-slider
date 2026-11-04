@@ -12,5 +12,5 @@ for (const file of files) {
   if (run.status !== 0) failed += 1;
 }
 
-console.log(failed === 0 ? "\nboth harnesses passed" : "\n" + failed + " harness(es) failed");
+console.log(failed === 0 ? "\nall harnesses passed" : "\n" + failed + " harness(es) failed");
 process.exit(failed === 0 ? 0 : 1);
