@@ -65,11 +65,6 @@ would clip a `position: fixed` child.
 
 - Click the trigger, then drag the rail or press `←` `→` `↑` `↓` `Home` `End`.
 - The rail snaps to the nearest level on release (elastic overshoot).
-- Reaching **high** turns the starfield into warp: the stars stream, the rail
-  becomes a slow galaxy swirl, and it stays lit for as long as the dial is at
-  high or above — so `xhigh` and `max` keep the look instead of only the top.
-  Dropping back below high switches it off. The top level still adds the full
-  celebration (flash, quake, caption).
 - The level names under the rail are buttons too — same edge math as the thumb,
   so each label sits exactly under its stop.
 - Click the 模型 row to expand the model list; picking a model carries the current
@@ -92,9 +87,6 @@ would clip a `position: fixed` child.
 - Only transforms, `opacity` and canvas are animated; no layout thrash.
 - The canvas is sized from the card (`getBoundingClientRect` + `ResizeObserver`),
   not from the viewport.
-- The warp gate is the level named `high`; a model that declares no `high`
-  warps from the last level at or below it on the shared ladder, and a model
-  with one level never warps.
 - Opening the popup while already on the top level arms the burst guard instead of
   firing it, so the celebration only plays when you actually move into the top
   level.

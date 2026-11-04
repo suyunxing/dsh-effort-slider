@@ -1,6 +1,6 @@
 {
   "name": "@lolannn/dsh-effort-slider",
-  "version": "0.2.6",
+  "version": "0.2.5",
   "description": "Replaces the dsh web GUI composer model selector: one control for the model list and its reasoning effort, drawn as a starfield popup with a glowing particle rail, iridescent four-point stars, ribbon waves and a galaxy collapse at the top level.",
   "icon": "icon.svg",
   "type": "module",

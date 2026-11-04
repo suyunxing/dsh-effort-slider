@@ -427,9 +427,6 @@ window.__ModuleLoader__.load({
         anim: null,
         dragging: false,
         warp: 0,
-        heat: 0,
-        warpFrom: -1,
-        warpFired: false,
         topFired: false,
         reduce: false,
         els: null,
@@ -514,7 +511,7 @@ window.__ModuleLoader__.load({
         s.y = Math.random() * 2 - 1;
         s.z = 0.98;
         s.born = S.time;
-        s.life = S.warp > 0.5 ? 6 + Math.random() * 5.5 : 4.2 + Math.random() * 4.2;
+        s.life = S.idx === topIndex() ? 6 + Math.random() * 5.5 : 4.2 + Math.random() * 4.2;
       }
 
       function initStars() {
@@ -558,23 +555,8 @@ window.__ModuleLoader__.load({
         }
       }
 
-      /**
-       * Visual spec for the rail. At or above the warp gate the rail renders
-       * the galaxy tier — the same swirl the top level shows — and keeps it for
-       * as long as the dial stays there.
-       */
-      function railSpec() {
-        const spec = specAt(S.t);
-        if (S.heat > 0.01 && spec.kind !== "none") {
-          spec.kind = "galaxy";
-          spec.n = Math.max(spec.n, 38);
-          spec.ribbon = false;
-        }
-        return spec;
-      }
-
       function ensureParticles() {
-        const spec = railSpec();
+        const spec = specAt(S.t);
         buildParticles(spec.n, spec.kind);
       }
 
@@ -763,7 +745,7 @@ window.__ModuleLoader__.load({
         const hh = S.rh;
         c.setTransform(S.rdpr, 0, 0, S.rdpr, 0, 0);
         c.clearRect(0, 0, w, hh);
-        const spec = railSpec();
+        const spec = specAt(S.t);
         const e = S.e;
         const hue = hueAtT(S.t);
         const pad = 11;
@@ -839,26 +821,22 @@ window.__ModuleLoader__.load({
         }
 
         if (spec.kind === "galaxy") {
-          const ga = clamp01(S.heat);
-          /* Centred on what is actually filled, so the swirl is whole when the
-           * gate is high rather than half-clipped at the fill edge. */
-          const gw = Math.max(24, reach);
-          const cxx = pad + gw * 0.5;
-          const gr = gw * 0.24;
-          const core = c.createRadialGradient(cxx, cyy, 0, cxx, cyy, gr);
+          const ga = clamp01((e - 0.9) / 0.1);
+          const cxx = pad + iw * 0.5;
+          const core = c.createRadialGradient(cxx, cyy, 0, cxx, cyy, iw * 0.24);
           core.addColorStop(0, "rgba(255,255,255,.95)");
           core.addColorStop(0.35, "hsla(196,100%,82%,.75)");
           core.addColorStop(0.72, "hsla(258,100%,62%,.34)");
           core.addColorStop(1, "hsla(258,100%,60%,0)");
           c.fillStyle = core;
           c.beginPath();
-          c.arc(cxx, cyy, gr, 0, Math.PI * 2);
+          c.arc(cxx, cyy, iw * 0.24, 0, Math.PI * 2);
           c.fill();
           for (let a = 0; a < 3; a++) {
             for (let i = 0; i < 130; i++) {
               const f = i / 130;
               const ang = a * ((Math.PI * 2) / 3) + f * 5.4 + S.time * 0.55;
-              const rad = f * gw * 0.46;
+              const rad = f * iw * 0.46;
               const x = cxx + Math.cos(ang) * rad;
               const y = cyy + Math.sin(ang) * rad * 0.42;
               const alpha = (1 - f) * 0.5 * (0.4 + ga * 0.6);
@@ -959,33 +937,6 @@ window.__ModuleLoader__.load({
         }
       }
 
-      /**
-       * Light celebration for crossing the warp gate at a level below the top.
-       *
-       * The full boom (quake, white flash, the big caption) stays reserved for
-       * the top level; this one only throws streaks, embers and two thin rings,
-       * so the rail lights up the moment the dial reaches high territory.
-       */
-      function surge() {
-        if (!S.els || S.reduce) return;
-        spawnStreaks();
-        S.waves.push({ r: 0, a: 0.72, w: 7, hue: 190 });
-        S.waves.push({ r: 0, a: 0.4, w: 18, hue: 300 });
-        for (let i = 0; i < 90; i++) {
-          const ang = Math.random() * Math.PI * 2;
-          const sp = 40 + Math.random() * 320;
-          S.debris.push({
-            x: S.W * 0.5,
-            y: S.H * 0.5,
-            vx: Math.cos(ang) * sp,
-            vy: Math.sin(ang) * sp,
-            life: 1,
-            hue: [190, 300, 45][i % 3],
-            size: 0.5 + Math.random() * 1.6
-          });
-        }
-      }
-
       function boom() {
         const els = S.els;
         if (!els) return;
@@ -1049,27 +1000,13 @@ window.__ModuleLoader__.load({
             }
           }
         }
-        /*
-         * The starfield goes to warp from the "gate" level upward, not only at
-         * the very top: the gate is the index of the level named "high" (see
-         * warpIndexOf), so moving into high — or anything above it — lights the
-         * rail and keeps it lit until the slider drops back below.
-         */
-        const gate = S.warpFrom >= 0 ? Math.min(S.warpFrom, top) : top;
-        const inside = top > 0 && i >= gate;
-        if (inside && !S.warpFired) {
-          S.warpFired = true;
-          S.warp = 1;
-          if (i < top) surge();
-        } else if (!inside) {
-          S.warpFired = false;
-          if (S.warp > 0.01) S.warp = 0;
-        }
-        if (i < top) {
-          S.topFired = false;
-        } else if (i === top && !S.topFired) {
+        const isTop = top > 0 && i === top;
+        if (isTop && !S.topFired) {
           S.topFired = true;
           boom();
+        } else if (!isTop) {
+          S.topFired = false;
+          if (S.warp > 0.01) S.warp = 0;
         }
       }
 
@@ -1103,18 +1040,10 @@ window.__ModuleLoader__.load({
         if (S.prevFade > 0) S.prevFade = Math.max(0, S.prevFade - dt / 0.24);
 
         syncLevel();
-
-        /* 0 outside the warp gate, 1 inside it, eased so the galaxy on the rail
-         * fades in instead of popping when the dial crosses high. */
-        const heatTarget = S.warpFired ? 1 : 0;
-        S.heat += (heatTarget - S.heat) * Math.min(1, dt * 7);
-        if (Math.abs(heatTarget - S.heat) < 0.002) S.heat = heatTarget;
-
         ensureParticles();
 
         const top = topIndex();
-        const gate = S.warpFrom >= 0 ? Math.min(S.warpFrom, top) : top;
-        if (!S.reduce && top > 0 && S.idx >= gate && S.frameNo % 10 === 0) spawnStreaks();
+        if (!S.reduce && top > 0 && S.idx === top && S.frameNo % 10 === 0) spawnStreaks();
 
         drawBG(dt);
         drawRail();
@@ -1206,14 +1135,12 @@ window.__ModuleLoader__.load({
         S.texts = opts.texts || S.texts;
         S.reduce = !!opts.reduce;
         S.count = Math.max(1, (opts.count || 1) | 0);
-        S.warpFrom = typeof opts.warpFrom === "number" ? opts.warpFrom | 0 : -1;
         S.mounted = true;
         S.time = 0;
         S.frameNo = 0;
         S.last = 0;
         S.e = S.t;
         S.topFired = false;
-        S.warpFired = false;
         S.warp = 0;
         S.waves.length = 0;
         S.debris.length = 0;
@@ -1282,20 +1209,6 @@ window.__ModuleLoader__.load({
         S.idx = Math.min(S.idx, topIndexOf(S.count));
       }
 
-      /** Move the warp gate when the model (and so its level list) changes. */
-      function setWarpFrom(index) {
-        const next = typeof index === "number" && index >= 0 ? index | 0 : -1;
-        if (next === S.warpFrom) return;
-        S.warpFrom = next;
-        if (!S.mounted) return;
-        const top = topIndex();
-        const gate = S.warpFrom >= 0 ? Math.min(S.warpFrom, top) : top;
-        if (S.idx < gate) {
-          S.warpFired = false;
-          if (S.warp > 0.01) S.warp = 0;
-        }
-      }
-
       function setIndex(index, immediate) {
         const top = topIndex();
         const to = levelT(clamp(index, 0, top), S.count);
@@ -1305,17 +1218,11 @@ window.__ModuleLoader__.load({
           S.e = to;
           S.idx = Math.round(to * top);
           /*
-           * Opening the panel must not replay the celebration. Only a real move
-           * into the warp gate (drag, click, keyboard) fires it; mounting with
-           * the slider already at or above the gate just arms the guards. The
-           * warp glow itself stays on either way: the state, not the burst, is
-           * what marks "this model is running hot".
+           * Opening the panel must not replay the top-level celebration. Only a
+           * real move into the top level (drag, click, keyboard) fires boom();
+           * mounting while already at the top just arms the guard.
            */
-          const gate = S.warpFrom >= 0 ? Math.min(S.warpFrom, top) : top;
-          const inside = S.count > 1 && S.idx >= gate;
           S.topFired = S.count > 1 && S.idx === top;
-          S.warpFired = inside;
-          S.warp = inside ? 1 : 0;
         } else {
           snapTo(to, 320);
         }
@@ -1325,7 +1232,6 @@ window.__ModuleLoader__.load({
         mount,
         unmount,
         setCount,
-        setWarpFrom,
         setIndex,
         beginDrag,
         isDragging() {
@@ -1480,28 +1386,6 @@ window.__ModuleLoader__.load({
     function effortName(model, id) {
       const hit = modelEfforts(model).filter((lv) => lv.id === id)[0];
       return hit ? hit.name : String(id);
-    }
-
-    /**
-     * Index of the level where the starfield jumps to warp.
-     *
-     * It is the level named "high" — from there upward the rail runs hot. A
-     * model that declares no "high" gets the last level at or below high on the
-     * shared effort ladder (a three-step off/low/max model starts warping at
-     * low), and a model with a single level never warps at all.
-     */
-    function warpIndexOf(levels) {
-      const list = Array.isArray(levels) ? levels : [];
-      if (list.length <= 1) return 0;
-      const named = list.findIndex((lv) => lv && lv.id === "high");
-      if (named >= 0) return named;
-      const gate = EFFORT_LADDER.indexOf("high");
-      let best = 0;
-      for (let i = 0; i < list.length; i++) {
-        const rank = EFFORT_LADDER.indexOf(list[i] && list[i].id);
-        if (rank >= 0 && rank <= gate) best = i;
-      }
-      return best;
     }
 
     class EffortController {
@@ -2059,7 +1943,6 @@ window.__ModuleLoader__.load({
       }, [snap.open]);
 
       const ready = snap.open && pos !== null;
-      const warpFrom = warpIndexOf(snap.levels);
 
       react.useEffect(() => {
         if (!ready) return;
@@ -2078,7 +1961,6 @@ window.__ModuleLoader__.load({
             big: bigRef.current
           },
           count: levelsRef.current.length,
-          warpFrom: warpFrom,
           texts: { boom: props.t("boom"), after: props.t("afterBoom") },
           reduce,
           onLevel: (i) => props.setIndex(i),
@@ -2091,10 +1973,9 @@ window.__ModuleLoader__.load({
       react.useEffect(() => {
         const engine = engineRef.current;
         if (!engine || !ready || !engine.isMounted()) return;
-        engine.setWarpFrom(warpFrom);
         engine.setCount(snap.levels.length);
         if (!engine.isDragging()) engine.setIndex(snap.index, true);
-      }, [snap.levels.length, warpFrom]);
+      }, [snap.levels.length]);
 
       /* Dismiss on an outside press or Escape. */
       react.useEffect(() => {
